@@ -3,9 +3,10 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "scripts": {
+   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "start": "vite preview",  // ใช้คำสั่งนี้สำหรับ Render เพื่อแสดงแอปใน production mode
     "lint": "eslint .",
     "preview": "vite preview"
   },
