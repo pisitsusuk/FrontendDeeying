@@ -137,7 +137,7 @@ const BankInfoAdmin = () => {
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">จัดการข้อมูลธนาคาร</h1>
           <p className="text-gray-600 text-sm mt-1">
-            กรอก/แก้ไขข้อมูลบัญชีสำหรับหน้าชำระเงิน (ฟีล iOS ละมุนๆ)
+            กรอก/แก้ไขข้อมูลบัญชีสำหรับหน้าชำระเงิน 
           </p>
         </div>
 
