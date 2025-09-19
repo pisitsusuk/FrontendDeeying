@@ -169,26 +169,25 @@ export default function ChatBot() {
     return merged;
   }, []);
 
-  // boot
-  useEffect(() => {
-    const saved = JSON.parse(localStorage.getItem("chatMessages") || "[]");
-    if (Array.isArray(saved) && saved.length) {
-      setMessages(saved);
-    } else {
-      setMessages([
-        {
-          id: uid(),
-          ts: Date.now(),
-          role: "bot",
-          type: "text",
-          text: "ยินดีต้อนรับครับ เลือกเมนูด้านบน หรือพิมพ์คุยกับบอทได้เลย 😊",
-        },
-      ]);
-    }
-  }, []);
-  useEffect(() => {
-    localStorage.setItem("chatMessages", JSON.stringify(messages));
-  }, [messages]);
+useEffect(() => {
+  // กันเคสที่เคยเซฟไว้ก่อนหน้า
+  try {
+    localStorage.removeItem("chatMessages");
+    sessionStorage.removeItem("chatMessages");
+  } catch {}
+
+  // เริ่มต้นใหม่ทุกครั้งที่โหลดหน้า
+  setMessages([
+    {
+      id: uid(),
+      ts: Date.now(),
+      role: "bot",
+      type: "text",
+      text: "ยินดีต้อนรับครับ เลือกเมนูด้านบน หรือพิมพ์คุยกับบอทได้เลย 😊",
+    },
+  ]);
+}, []);
+
 
   // auto-scroll
   useEffect(() => {
