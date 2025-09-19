@@ -10,12 +10,19 @@ import { toast } from "react-toastify";
 
 const iosBlue = "#0A84FF";
 
+// ใช้ค่า API เดียวกับโปรเจ็กต์ (ไม่แตะไฟล์อื่น)
+const API_HOST =
+  import.meta.env.VITE_API_URL ||
+  import.meta.env.VITE_API ||
+  "https://backenddeeying.onrender.com";
+
 const TableUsers = () => {
   const token = useEcomStore((state) => state.token);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
+  const [deletingId, setDeletingId] = useState(null);
 
   useEffect(() => {
     if (!token) return;
@@ -59,6 +66,40 @@ const TableUsers = () => {
     } catch (err) {
       toast.error("อัปเดตสิทธิ์ไม่สำเร็จ");
       console.log(err);
+    }
+  };
+
+  // ลบผู้ใช้ (DELETE) — ทำเฉพาะไฟล์นี้ ไม่แตะโมดูลอื่น
+  const handleDeleteUser = async (userId, email) => {
+    const ok = window.confirm(`ยืนยันลบผู้ใช้\n${email || userId}?`);
+    if (!ok) return;
+
+    try {
+      setDeletingId(userId);
+      const res = await fetch(`${API_HOST}/api/admin/users/${userId}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) {
+        let msg = "ลบผู้ใช้ไม่สำเร็จ";
+        try {
+          const j = await res.json();
+          if (j?.message) msg = j.message;
+        } catch {}
+        throw new Error(msg);
+      }
+
+      toast.success("ลบผู้ใช้เรียบร้อย");
+      handleGetUsers(token);
+    } catch (err) {
+      console.log(err);
+      toast.error(err.message || "ลบผู้ใช้ไม่สำเร็จ");
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -201,16 +242,31 @@ const TableUsers = () => {
 
                       {/* Actions */}
                       <td className="px-5 py-3 text-center">
-                        <button
-                          className={`px-4 py-2 rounded-2xl text-white text-xs font-semibold shadow-md transition active:scale-[.98] ${
-                            el.enabled
-                              ? "bg-red-600 hover:bg-red-700"
-                              : "bg-emerald-600 hover:bg-emerald-700"
-                          }`}
-                          onClick={() => handleChangeUserStatus(el.id, el.enabled)}
-                        >
-                          {el.enabled ? "ปิดการใช้งาน" : "เปิดการใช้งาน"}
-                        </button>
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            className={`px-4 py-2 rounded-2xl text-white text-xs font-semibold shadow-md transition active:scale-[.98] ${
+                              el.enabled
+                                ? "bg-red-600 hover:bg-red-700"
+                                : "bg-emerald-600 hover:bg-emerald-700"
+                            }`}
+                            onClick={() => handleChangeUserStatus(el.id, el.enabled)}
+                          >
+                            {el.enabled ? "ปิดการใช้งาน" : "เปิดการใช้งาน"}
+                          </button>
+
+                          <button
+                            disabled={deletingId === el.id}
+                            onClick={() => handleDeleteUser(el.id, el.email)}
+                            className={`px-4 py-2 rounded-2xl text-xs font-semibold transition active:scale-[.98] border ${
+                              deletingId === el.id
+                                ? "bg-gray-300 text-gray-500 border-gray-300 cursor-not-allowed"
+                                : "bg-white text-red-600 border-red-300 hover:bg-red-50"
+                            }`}
+                            title="ลบผู้ใช้"
+                          >
+                            {deletingId === el.id ? "กำลังลบ…" : "ลบผู้ใช้"}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -233,8 +289,6 @@ const TableUsers = () => {
             </div>
           )}
         </div>
-
-        
       </div>
     </div>
   );
