@@ -56,7 +56,7 @@ const FormCategory = () => {
       getCategory(token);
     } catch (err) {
       console.log(err);
-      toast.error("ลบหมวดหมู่ไม่สำเร็จ");
+      toast.error(err?.response?.data?.message || "ลบหมวดหมู่ไม่สำเร็จ");
     } finally {
       setRemovingId(null);
     }
