@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { getOrders } from "../../api/user";
 import useEcomStore from "../../store/ecom-store";
-import { dateFormat } from "../../utils/dateformat";
+import { dateTimeFormat } from "../../utils/dateformat";
 import { numberFormat } from "../../utils/number";
 import { CalendarDays, MapPin, Package2, Receipt } from "lucide-react";
 
@@ -263,9 +263,9 @@ export default function HistoryCard() {
                     </div>
                     <div>
                       <div className="text-sm text-gray-500">สั่งซื้อเมื่อ</div>
-                      <div className="font-semibold">
-                        {dateFormat(item.updatedAt || item.createdAt)}
-                      </div>
+                        <div className="font-semibold">
+                          {dateTimeFormat(item.createdAt || item.updatedAt)}
+                        </div>
                       {!!item.id && (
                         <div className="text-xs text-gray-500">Order #{item.id}</div>
                       )}
