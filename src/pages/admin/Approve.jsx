@@ -8,7 +8,7 @@ import {
   buildImageUrl,
 } from "../../api/order";
 import { numberFormat } from "../../utils/number";
-import { dateFormat } from "../../utils/dateformat";
+import { dateTimeFormat } from "../../utils/dateformat";
 
 const STATUS_FILTERS = ["", "PENDING", "APPROVED", "REJECTED"];
 const STATUS_OPTIONS = ["PENDING", "APPROVED", "REJECTED"];
@@ -208,9 +208,11 @@ export default function Approve() {
                     <tr className="border-t border-white/50 hover:bg-white/60">
                       <td className="p-3 text-center text-gray-700">{idx + 1}</td>
                       <td className="p-3">
-                        {s.createdAt ? (
-                          <div className="font-medium text-gray-900">{dateFormat(s.createdAt)}</div>
-                        ) : <span className="text-gray-400">—</span>}
+                        {s.createdAt || s.updatedAt ? (
+                           <div className="font-medium text-gray-900">
+                             {dateTimeFormat(s.createdAt || s.updatedAt)}
+                           </div>
+                             ) : <span className="text-gray-400">—</span>}
                         {s.userEmail && <div className="text-xs text-gray-500">{s.userEmail}</div>}
                       </td>
                       <td className="p-3 text-gray-900">{s.cartId}</td>
