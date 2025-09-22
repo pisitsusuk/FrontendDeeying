@@ -247,7 +247,7 @@ export default function HistoryCard() {
         <div className="space-y-6">
           {orders.map((item, idx) => {
             const address = getOrderAddressDirect(item) || addrResolver(item);
-            const orderStatus = String(item.orderStatus || "processing");
+            const orderStatus = String(item.orderStatus || "");
             const slipStatus = String(item.slipStatus || "pending");
 
             return (
@@ -273,9 +273,10 @@ export default function HistoryCard() {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <Pill tone={toneFromStatus(orderStatus)}>{orderStatus}</Pill>
-                    <Pill tone={toneFromStatus(slipStatus)}>{slipStatus}</Pill>
+                  {orderStatus && <Pill tone={toneFromStatus(orderStatus)}>{orderStatus}</Pill>}
+                  <Pill tone={toneFromStatus(slipStatus)}>{slipStatus}</Pill>
                   </div>
+
                 </div>
 
                 {/* Address */}
