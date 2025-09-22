@@ -16,7 +16,7 @@ export default function Dashboard() {
   const token = useEcomStore((s) => s.token);
   const [loading, setLoading] = useState(true);
   const [metrics, setMetrics] = useState({
-    kpis: { users: 0, products: 0, orders: 0, revenueApproved: 0, pending: 0 },
+    kpis: { users: 0, products: 0, orders: 0, revenueApproved: 0, reviewed: 0, unreviewed: 0 },
     salesByDay: [],
     productsByCategory: [],
     lowStock: [],
@@ -42,7 +42,8 @@ export default function Dashboard() {
             revenueApproved: toNum(
               k.revenueApproved ?? k.revenue_sum ?? k.revenue ?? k.approvedRevenue ?? raw.revenueApproved ?? 0
             ),
-            pending: toNum(k.pending ?? k.pendingCount ?? raw.pending ?? raw.pendingCount ?? 0),
+            reviewed: toNum(k.reviewed ?? raw.reviewed ?? 0),
+            unreviewed: toNum(k.unreviewed ?? raw.unreviewed ?? k.pending ?? k.pendingCount ?? 0),
           },
           salesByDay: raw.salesByDay ?? raw.sales ?? raw.sales_by_day ?? [],
           productsByCategory: raw.productsByCategory ?? raw.byCategory ?? raw.products_by_category ?? [],
@@ -66,8 +67,9 @@ export default function Dashboard() {
           quantity: toNum(p.quantity ?? p.qty ?? 0),
         }));
 
-        const hasData =
-          norm.kpis.users + norm.kpis.products + norm.kpis.orders + norm.kpis.revenueApproved + norm.kpis.pending > 0 ||
+          const hasData =
+          norm.kpis.users + norm.kpis.products + norm.kpis.orders + norm.kpis.revenueApproved +
+          norm.kpis.reviewed + norm.kpis.unreviewed > 0 ||
           (norm.salesByDay?.length || 0) > 0 ||
           (norm.productsByCategory?.length || 0) > 0;
 
@@ -80,13 +82,14 @@ export default function Dashboard() {
 
       // ---------- 2) โหมดสำรอง: ใช้ endpoint ที่พี่มีอยู่แล้ว ----------
       try {
-        const [usersRes, ordersRes, productsRes, slipsOkRes, slipsPendingRes] =
+        const [usersRes, ordersRes, productsRes, slipsOkRes, slipsPendingRes, slipsRejectedRes] =
           await Promise.allSettled([
             axios.get(`${API}/admin/users`, { headers }),
             axios.get(`${API}/admin/orders`, { headers }),
             axios.get(`${API}/products/1000`, { headers }),
             axios.get(`${API}/admin/approve`, { headers, params: { status: "APPROVED" } }),
             axios.get(`${API}/admin/approve`, { headers, params: { status: "PENDING" } }),
+            axios.get(`${API}/admin/approve`, { headers, params: { status: "REJECTED" } }),
           ]);
 
         // ดึง array ออกมาให้ได้ไม่ว่าแบ็กเอนด์จะห่อไว้ยังไง
@@ -95,6 +98,7 @@ export default function Dashboard() {
         const productsArr  = asArray(pick(productsRes), ["products"]);
         const slipsOKArr   = asArray(pick(slipsOkRes));
         const slipsPendArr = asArray(pick(slipsPendingRes));
+        const slipsRejArr  = asArray(pick(slipsRejectedRes));
 
         const kpis = {
           users: usersArr.length,
@@ -102,6 +106,8 @@ export default function Dashboard() {
           orders: ordersArr.length,
           revenueApproved: slipsOKArr.reduce((s, x) => s + toNum(x.amount ?? x.total ?? x.sum ?? 0), 0),
           pending: slipsPendArr.length,
+          reviewed: slipsOKArr.length + slipsRejArr.length,
+          unreviewed: slipsPendArr.length,
         };
 
         const salesByDay = build14DaysSeries(slipsOKArr);
@@ -188,11 +194,11 @@ export default function Dashboard() {
 
       {/* KPI cards */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <Kpi icon="฿" title="ยอดขายสะสม (Approved)" value={`฿ ${fmt.format(kpis.revenueApproved)}`} />
-        <Kpi icon="🧾" title="คำสั่งซื้อทั้งหมด" value={fmt.format(kpis.orders)} />
-        <Kpi icon="⏳" title="รอตรวจสอบ" value={fmt.format(kpis.pending)} />
-        <Kpi icon="📦" title="สินค้า" value={fmt.format(kpis.products)} />
-        <Kpi icon="👤" title="ผู้ใช้" value={fmt.format(kpis.users)} />
+        <Kpi icon="฿"  title="ยอดขายสะสม (Approved)" value={`฿ ${fmt.format(kpis.revenueApproved)}`} />
+        <Kpi icon="🧾" title="คำสั่งซื้อทั้งหมด"     value={fmt.format(kpis.orders)} />
+        <Kpi icon="✅" title="ตรวจสอบแล้ว"            value={fmt.format(kpis.reviewed)} />
+        <Kpi icon="⏳" title="ยังไม่ได้ตรวจ"          value={fmt.format(kpis.unreviewed)} />
+        <Kpi icon="📦" title="สินค้า"                  value={fmt.format(kpis.products)} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
