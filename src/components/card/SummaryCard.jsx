@@ -188,8 +188,6 @@ export default function SummaryCard() {
             <div className="mb-3 text-lg font-semibold text-gray-900">ยอดรวม</div>
             <div className="space-y-2 text-sm">
               <Row label="รวมสินค้า" value={`฿${numberFormat(cartTotal)}`} />
-              <Row label="ค่าจัดส่ง" value="—" />
-              <Row label="ส่วนลด" value="—" />
               <div className="my-2 border-t border-black/10" />
               <Row
                 label={<span className="font-semibold text-gray-900">รวมสุทธิ</span>}
