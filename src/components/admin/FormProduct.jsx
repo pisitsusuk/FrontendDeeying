@@ -70,7 +70,7 @@ const FormProduct = () => {
       getProduct(100);
     } catch (err) {
       console.log(err);
-      toast.error("ลบสินค้าไม่สำเร็จ");
+      toast.error(err?.response?.data?.message || "ลบสินค้าไม่สำเร็จ");
     } finally {
       setLoading(false);
     }
