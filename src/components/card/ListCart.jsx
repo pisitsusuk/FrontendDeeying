@@ -122,8 +122,6 @@ export default function ListCart() {
 
               <div className="space-y-2 text-sm">
                 <Row label="รวมสินค้า" value={`฿${numberFormat(total)}`} />
-                <Row label="ค่าจัดส่ง" value="—" />
-                <div className="my-2 border-t border-black/10" />
                 <Row
                   label={<span className="font-semibold text-gray-900">รวมสุทธิ</span>}
                   value={<span className="text-xl font-bold text-gray-900">฿{numberFormat(total)}</span>}
