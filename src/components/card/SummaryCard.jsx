@@ -1,4 +1,3 @@
-// client/src/components/card/SummaryCard.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -40,19 +39,20 @@ const Row = ({ label, value }) => (
   </div>
 );
 
+/* ---------- NEW: localStorage key for last saved address ---------- */
+const LS_KEY_LAST_ADDR = "last_address_checkout";
+
 export default function SummaryCard() {
   const token = useEcomStore((s) => s.token);
 
-  // ดึงสินค้าจาก store ไว้ใช้ “เติมรูป” ให้ payload ที่ไม่มี images
+  // ใช้ pools สินค้าใน store เพื่อเติมรูป
   const s = useEcomStore.getState();
   const products = useEcomStore((st) => st.products);
   const getProduct = useEcomStore((st) => st.getProduct);
   const productIndex = useMemo(() => {
     const pools = [s.products, s.hotProducts, s.newProducts].filter(Array.isArray);
     const idx = new Map();
-    pools.forEach((arr) =>
-      (arr || []).forEach((p) => idx.set(String(p.id ?? p._id), p))
-    );
+    pools.forEach((arr) => (arr || []).forEach((p) => idx.set(String(p.id ?? p._id), p)));
     return idx;
   }, [products]); // อัปเดตเมื่อ products เปลี่ยน
 
@@ -65,21 +65,22 @@ export default function SummaryCard() {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // ==== ใหม่: ที่อยู่ครั้งก่อน ====
+  /* ---------- NEW: previous address state + checkbox ---------- */
   const [prevAddress, setPrevAddress] = useState("");
   const [usePrev, setUsePrev] = useState(false);
-  const [loadingPrev, setLoadingPrev] = useState(false);
 
   const navigate = useNavigate();
 
   useEffect(() => {
-    // เผื่อไม่มี products ใน store เลย -> โหลดมาเพื่อใช้รูป
-    if (!Array.isArray(products) || products.length === 0) {
-      getProduct?.();
-    }
+    // โหลดสินค้าไว้เติมรูป
+    if (!Array.isArray(products) || products.length === 0) getProduct?.();
+    // เติม address จาก localStorage ให้ textarea (คุณยังแก้ไขได้)
+    const fromLS = localStorage.getItem(LS_KEY_LAST_ADDR) || "";
+    if (fromLS && !address) setAddress(fromLS);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // โหลดตะกร้า
   useEffect(() => {
     if (!token) return;
     (async () => {
@@ -104,30 +105,33 @@ export default function SummaryCard() {
     })();
   }, [token]);
 
-  // ==== ใหม่: โหลดที่อยู่จากคำสั่งซื้อครั้งก่อน ====
+  // โหลด “ที่อยู่ก่อนหน้า” จาก history → ถ้าไม่เจอให้ลองจาก localStorage
   useEffect(() => {
     if (!token) return;
     (async () => {
       try {
-        setLoadingPrev(true);
-        const res = await fetch(`${API_BASE}/api/user/history`, {
+        const r = await fetch(`${API_BASE}/api/user/history`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        const data = await res.json().catch(() => ({}));
-        const orders = Array.isArray(data?.orders) ? data.orders : [];
-        // หาที่อยู่ตัวแรกที่ไม่ว่าง (ลิสต์นี้เรียงล่าสุดอยู่แล้วจากฝั่งแบ็กเอนด์)
-        const found =
-          orders.find((o) => (o?.shippingAddress || "").trim())?.shippingAddress || "";
-        setPrevAddress(found);
-      } catch (e) {
-        console.log("fetch prev address error:", e);
-      } finally {
-        setLoadingPrev(false);
+        let found = "";
+        if (r.ok) {
+          const data = await r.json();
+          const orders = Array.isArray(data?.orders) ? data.orders : [];
+          for (const o of orders) {
+            const a = (o?.shippingAddress || o?.address || o?.shipping_address || "").trim();
+            if (a) { found = a; break; }
+          }
+        }
+        const fromLS = localStorage.getItem(LS_KEY_LAST_ADDR) || "";
+        setPrevAddress(found || fromLS || "");
+      } catch {
+        const fromLS = localStorage.getItem(LS_KEY_LAST_ADDR) || "";
+        setPrevAddress(fromLS || "");
       }
     })();
   }, [token]);
 
-  // หา URL รูป: ถ้า product ไม่มีรูป -> หาใน productIndex ด้วย id
+  // หา URL รูป
   const resolveCover = (p) => {
     const own = getCoverFromObj(p);
     if (own) return own;
@@ -153,11 +157,29 @@ export default function SummaryCard() {
       const res = await saveAddress(token, { address: addr, cartId });
       toast.success(res?.data?.message || "บันทึกที่อยู่เรียบร้อย");
       setAddressSaved(true);
+      /* ---------- NEW: จำไว้ใน localStorage + อัปเดต prev ---------- */
+      localStorage.setItem(LS_KEY_LAST_ADDR, addr);
+      setPrevAddress(addr);
     } catch (err) {
       console.log(err);
       toast.error(err?.response?.data?.message || "บันทึกที่อยู่ไม่สำเร็จ");
     } finally {
       setSaving(false);
+    }
+  };
+
+  /* ---------- NEW: toggle ใช้ที่อยู่ก่อนหน้า ---------- */
+  const hdlToggleUsePrev = () => {
+    const next = !usePrev;
+    setUsePrev(next);
+    if (!next) return;
+    const pick = (prevAddress || "").trim() || localStorage.getItem(LS_KEY_LAST_ADDR) || "";
+    if (pick) {
+      setAddress(pick);
+      setAddressSaved(false); // ให้กดบันทึกใหม่เพื่อยืนยัน
+    } else {
+      toast.info("ยังไม่พบที่อยู่จากคำสั่งซื้อก่อนหน้า");
+      setUsePrev(false);
     }
   };
 
@@ -167,20 +189,6 @@ export default function SummaryCard() {
     if (!cartId) return toast.error("ไม่พบ Cart ID กรุณารีเฟรชหน้า");
     localStorage.setItem("pay_total", String(cartTotal));
     navigate(`/user/payment-slip?cart_id=${cartId}&amount=${cartTotal}`);
-  };
-
-  const hdlToggleUsePrev = async (e) => {
-    const checked = e.target.checked;
-    setUsePrev(checked);
-    if (checked) {
-      if (!prevAddress) {
-        toast.info("ยังไม่พบที่อยู่จากคำสั่งซื้อก่อนหน้า");
-        setUsePrev(false);
-        return;
-      }
-      setAddress(prevAddress);
-      setAddressSaved(false); // ให้กดบันทึกใหม่เสมอ
-    }
   };
 
   return (
@@ -195,21 +203,19 @@ export default function SummaryCard() {
               ที่อยู่ในการจัดส่ง
             </div>
 
-            {/* ใหม่: เช็คบ็อกซ์ใช้ที่อยู่เดิม */}
-            <div className="mb-2 flex items-center gap-2">
+            {/* NEW: ใช้ที่อยู่ก่อนหน้า */}
+            <label className="mb-2 flex items-center gap-2 text-sm text-gray-700">
               <input
-                id="use-prev-address"
                 type="checkbox"
-                className="h-4 w-4 rounded border-gray-300"
-                onChange={hdlToggleUsePrev}
                 checked={usePrev}
-                disabled={loadingPrev}
+                onChange={hdlToggleUsePrev}
+                className="h-4 w-4 rounded border-gray-300"
               />
-              <label htmlFor="use-prev-address" className="text-sm text-gray-700">
-                ใช้ที่อยู่จากคำสั่งซื้อครั้งก่อน
-                {loadingPrev ? " (กำลังดึง…)" : ""}
-              </label>
-            </div>
+              ใช้ที่อยู่จากคำสั่งซื้อครั้งก่อน
+              {prevAddress ? (
+                <span className="truncate text-gray-500 max-w-[14rem]">— {prevAddress}</span>
+              ) : null}
+            </label>
 
             <textarea
               value={address}
@@ -220,7 +226,6 @@ export default function SummaryCard() {
               placeholder="บ้านเลขที่, ถนน, แขวง/ตำบล, เขต/อำเภอ, จังหวัด, รหัสไปรษณีย์, เบอร์โทร"
               className="h-32 w-full resize-y rounded-2xl border border-black/10 bg-white p-3 text-[15px] outline-none placeholder:text-gray-400"
             />
-
             <div className="mt-3 flex items-center justify-between">
               <div className="text-xs text-gray-500">
                 {addressSaved ? (
