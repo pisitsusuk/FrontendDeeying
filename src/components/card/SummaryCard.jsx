@@ -71,14 +71,14 @@ export default function SummaryCard() {
 
   const navigate = useNavigate();
 
-  useEffect(() => {
-    // โหลดสินค้าไว้เติมรูป
-    if (!Array.isArray(products) || products.length === 0) getProduct?.();
-    // เติม address จาก localStorage ให้ textarea (คุณยังแก้ไขได้)
-    const fromLS = localStorage.getItem(LS_KEY_LAST_ADDR) || "";
-    if (fromLS && !address) setAddress(fromLS);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+useEffect(() => {
+  if (!Array.isArray(products) || products.length === 0) {
+    getProduct?.();
+  }
+  // ไม่มีการ setAddress ที่นี่อีกต่อไป
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
+
 
   // โหลดตะกร้า
   useEffect(() => {
