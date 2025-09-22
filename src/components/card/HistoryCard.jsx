@@ -272,10 +272,12 @@ export default function HistoryCard() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                  {orderStatus && <Pill tone={toneFromStatus(orderStatus)}>{orderStatus}</Pill>}
-                  <Pill tone={toneFromStatus(slipStatus)}>{slipStatus}</Pill>
-                  </div>
+                 <div className="flex items-center gap-2">
+                    {String(orderStatus).toLowerCase() !== "processing" && (
+                    <Pill tone={toneFromStatus(orderStatus)}>{orderStatus}</Pill>
+                    )}
+                       <Pill tone={toneFromStatus(slipStatus)}>{slipStatus}</Pill>
+                    </div>
 
                 </div>
 
