@@ -726,7 +726,6 @@ useEffect(() => {
           </div>
 
           <div style={{ display: "flex", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
-            <StatusChip label={`สถานะ: ${o.orderStatus || "ไม่ระบุ"}`} tone={getOrderTone(o.orderStatus)} />
             <StatusChip label={`สลิป: ${o.slipStatus ? o.slipStatus : "—"}`} tone={getSlipTone(o.slipStatus)} />
           </div>
 
