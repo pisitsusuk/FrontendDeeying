@@ -8,7 +8,7 @@ import {
 import useEcomStore from "../../store/ecom-store";
 import { toast } from "react-toastify";
 import { numberFormat } from "../../utils/number";
-import { dateFormat } from "../../utils/dateformat";
+import { dateTimeFormat } from "../../utils/dateformat";
 
 /* --- UI helpers --- */
 const StatusPill = ({ value }) => {
@@ -201,7 +201,7 @@ export default function Tableappoveslip() {
                       <td className="p-3 text-center text-gray-700">{i + 1}</td>
                       <td className="p-3 text-left">
                         <div className="font-medium text-gray-900">
-                          {r.when ? dateFormat(r.when) : <span className="text-gray-400">—</span>}
+                          {r.when ? dateTimeFormat(r.when) : <span className="text-gray-400">—</span>}
                         </div>
                         {r.buyer && <div className="text-xs text-gray-500">{r.buyer}</div>}
                       </td>
