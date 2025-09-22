@@ -88,6 +88,7 @@ export default function Approve() {
         userName: it.userName ?? it.user_name ?? it.user?.name ?? "",
         userEmail: it.userEmail ?? it.user_email ?? it.user?.email ?? "",
         shippingAddress: it.shippingAddress ?? it.shipping_address ?? it.address ?? null,
+        when: it.createdAt || it.created_at || it.updatedAt || it.updated_at || null,
       }));
       setRows(normalized);
     } catch (e) {
@@ -208,11 +209,9 @@ export default function Approve() {
                     <tr className="border-t border-white/50 hover:bg-white/60">
                       <td className="p-3 text-center text-gray-700">{idx + 1}</td>
                       <td className="p-3">
-                        {s.createdAt || s.updatedAt ? (
-                           <div className="font-medium text-gray-900">
-                             {dateTimeFormat(s.createdAt || s.updatedAt)}
-                           </div>
-                             ) : <span className="text-gray-400">—</span>}
+                         <div className="font-medium text-gray-900">
+                          {s.when ? dateTimeFormat(s.when) : <span className="text-gray-400">—</span>}
+                          </div>
                         {s.userEmail && <div className="text-xs text-gray-500">{s.userEmail}</div>}
                       </td>
                       <td className="p-3 text-gray-900">{s.cartId}</td>
