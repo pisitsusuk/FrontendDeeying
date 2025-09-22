@@ -105,7 +105,6 @@ export default function Dashboard() {
           products: productsArr.length,
           orders: ordersArr.length,
           revenueApproved: slipsOKArr.reduce((s, x) => s + toNum(x.amount ?? x.total ?? x.sum ?? 0), 0),
-          pending: slipsPendArr.length,
           reviewed: slipsOKArr.length + slipsRejArr.length,
           unreviewed: slipsPendArr.length,
         };
