@@ -40,8 +40,27 @@ const Row = ({ label, value }) => (
   </div>
 );
 
-/* ---------- KEY สำหรับจำที่อยู่ล่าสุด ---------- */
+/* ---------- remember last address/phone ---------- */
 const LS_KEY_LAST_ADDR = "last_address_checkout";
+const LS_KEY_LAST_PHONE = "last_phone_checkout";
+
+const extractPhoneFromText = (s = "") => {
+  // ดึงเบอร์ท้ายสตริง (ยืดหยุ่น: รับ +, เว้นวรรค, ขีด)
+  const m = String(s).match(/(\+?\d[\d\s-]{7,}\d)\s*$/);
+  return m ? m[1] : "";
+};
+const normalizePhoneDigits = (s = "") => s.replace(/[^\d]/g, "");
+const isPhoneValid = (s = "") => {
+  const d = normalizePhoneDigits(s);
+  return d.length >= 8 && d.length <= 15; // ยืดหยุ่นสำหรับเบอร์ไทย/สากล
+};
+const mergeAddressPhone = (addr = "", phone = "") => {
+  const d = normalizePhoneDigits(phone);
+  if (!d) return addr.trim();
+  // ถ้าที่อยู่มีเลขชุดเดียวกันอยู่แล้ว ไม่ต้องซ้ำ
+  if (normalizePhoneDigits(addr).includes(d)) return addr.trim();
+  return `${addr.trim()} , เบอร์โทร: ${phone.trim()}`;
+};
 
 export default function SummaryCard() {
   const token = useEcomStore((s) => s.token);
@@ -66,9 +85,13 @@ export default function SummaryCard() {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  /* ---------- ที่อยู่ครั้งก่อน + เช็คบ็อกซ์ ---------- */
+  /* ---------- previous address/phone + checkboxes ---------- */
   const [lastAddress, setLastAddress] = useState("");
-  const [usePrev, setUsePrev] = useState(false);
+  const [usePrevAddr, setUsePrevAddr] = useState(false);
+
+  const [phone, setPhone] = useState("");
+  const [lastPhone, setLastPhone] = useState("");
+  const [usePrevPhone, setUsePrevPhone] = useState(false);
 
   const navigate = useNavigate();
 
@@ -105,7 +128,7 @@ export default function SummaryCard() {
     })();
   }, [token]);
 
-  // โหลด "ที่อยู่จากคำสั่งซื้อครั้งก่อน" (ไม่ auto-fill จนกว่าจะติ๊ก)
+  // โหลด "ที่อยู่/เบอร์ จากคำสั่งซื้อครั้งก่อน" (ยังไม่ auto-fill จนกว่าจะติ๊ก)
   useEffect(() => {
     if (!token) return;
     (async () => {
@@ -113,17 +136,23 @@ export default function SummaryCard() {
         const res = await fetch(`${API_BASE}/api/user/history`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        if (!res.ok) return;
+        if (!res.ok) throw new Error("history not ok");
         const j = await res.json();
         const orders = Array.isArray(j?.orders) ? j.orders : [];
-        const addr =
+        const addrRaw =
           orders.find((o) => (o.shippingAddress || "").trim())?.shippingAddress || "";
-        const fallback = localStorage.getItem(LS_KEY_LAST_ADDR) || "";
-        setLastAddress((addr || fallback).trim());
-      } catch (e) {
-        console.log("fetch last address error:", e);
-        const fallback = localStorage.getItem(LS_KEY_LAST_ADDR) || "";
-        setLastAddress(fallback.trim());
+        const fallbackAddr = localStorage.getItem(LS_KEY_LAST_ADDR) || "";
+        const finalAddr = (addrRaw || fallbackAddr).trim();
+        setLastAddress(finalAddr);
+
+        const phoneFromAddr = extractPhoneFromText(finalAddr);
+        const fallbackPhone = localStorage.getItem(LS_KEY_LAST_PHONE) || "";
+        setLastPhone((phoneFromAddr || fallbackPhone).trim());
+      } catch {
+        const fallbackAddr = (localStorage.getItem(LS_KEY_LAST_ADDR) || "").trim();
+        const fallbackPhone = (localStorage.getItem(LS_KEY_LAST_PHONE) || "").trim();
+        setLastAddress(fallbackAddr);
+        setLastPhone(fallbackPhone || extractPhoneFromText(fallbackAddr));
       }
     })();
   }, [token]);
@@ -146,16 +175,23 @@ export default function SummaryCard() {
 
   const hdlSaveAddress = async () => {
     const addr = (address || "").trim();
+    const tel = (phone || "").trim();
     if (!addr) return toast.warning("กรุณากรอกที่อยู่ให้ครบถ้วน");
+    if (!tel) return toast.warning("กรุณากรอกเบอร์โทร");
+    if (!isPhoneValid(tel)) return toast.warning("รูปแบบเบอร์ไม่ถูกต้อง");
     if (!cartId) return toast.error("ไม่พบ Cart ID");
+
+    const addrWithPhone = mergeAddressPhone(addr, tel);
 
     try {
       setSaving(true);
-      const res = await saveAddress(token, { address: addr, cartId });
+      const res = await saveAddress(token, { address: addrWithPhone, cartId });
       toast.success(res?.data?.message || "บันทึกที่อยู่เรียบร้อย");
       setAddressSaved(true);
-      localStorage.setItem(LS_KEY_LAST_ADDR, addr); // จำไว้
-      setLastAddress(addr);
+      localStorage.setItem(LS_KEY_LAST_ADDR, addrWithPhone);
+      localStorage.setItem(LS_KEY_LAST_PHONE, tel);
+      setLastAddress(addrWithPhone);
+      setLastPhone(tel);
     } catch (err) {
       console.log(err);
       toast.error(err?.response?.data?.message || "บันทึกที่อยู่ไม่สำเร็จ");
@@ -164,21 +200,41 @@ export default function SummaryCard() {
     }
   };
 
-  // ติ๊กใช้ที่อยู่ครั้งก่อน = เติม / เอาติ๊กออก = ล้างช่อง
-  const hdlToggleUsePrev = (e) => {
+  // ติ๊กใช้ที่อยู่ครั้งก่อน
+  const toggleUsePrevAddr = (e) => {
     const next = e.target.checked;
-    setUsePrev(next);
+    setUsePrevAddr(next);
     if (next) {
       const pick = (lastAddress || "").trim() || (localStorage.getItem(LS_KEY_LAST_ADDR) || "").trim();
       if (pick) {
-        setAddress(pick);
-        setAddressSaved(false); // ให้ผู้ใช้กด "บันทึกที่อยู่" ยืนยันอีกครั้ง
+        // เติมเฉพาะที่อยู่ (ไม่เติมเบอร์) ตาม requirement
+        setAddress(pick.replace(/\s*,?\s*(เบอร์|โทร|tel).*$/i, "")); // ตัดส่วนเบอร์ท้ายถ้ามี
+        setAddressSaved(false);
       } else {
-        setUsePrev(false);
+        setUsePrevAddr(false);
         toast.info("ยังไม่พบที่อยู่จากคำสั่งซื้อก่อนหน้า");
       }
     } else {
       setAddress("");
+      setAddressSaved(false);
+    }
+  };
+
+  // ติ๊กใช้เบอร์ครั้งก่อน
+  const toggleUsePrevPhone = (e) => {
+    const next = e.target.checked;
+    setUsePrevPhone(next);
+    if (next) {
+      const pick = (lastPhone || "").trim() || (localStorage.getItem(LS_KEY_LAST_PHONE) || "").trim();
+      if (pick) {
+        setPhone(pick);
+        setAddressSaved(false);
+      } else {
+        setUsePrevPhone(false);
+        toast.info("ยังไม่พบเบอร์จากคำสั่งซื้อก่อนหน้า");
+      }
+    } else {
+      setPhone("");
       setAddressSaved(false);
     }
   };
@@ -191,7 +247,9 @@ export default function SummaryCard() {
     navigate(`/user/payment-slip?cart_id=${cartId}&amount=${cartTotal}`);
   };
 
-  const hasPrevAddress = Boolean((lastAddress || localStorage.getItem(LS_KEY_LAST_ADDR) || "").trim());
+  const hasPrevAddr = Boolean((lastAddress || localStorage.getItem(LS_KEY_LAST_ADDR) || "").trim());
+  const hasPrevPhone = Boolean((lastPhone || localStorage.getItem(LS_KEY_LAST_PHONE) || "").trim());
+  const phoneOk = isPhoneValid(phone);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6">
@@ -205,15 +263,15 @@ export default function SummaryCard() {
               ที่อยู่ในการจัดส่ง
             </div>
 
-            {/* ใช้ที่อยู่ก่อนหน้า (ไม่มี preview ข้อความด้านขวา) */}
+            {/* ใช้ที่อยู่ก่อนหน้า */}
             <label className="mb-2 flex items-center gap-2 text-sm text-gray-700">
               <input
                 type="checkbox"
-                checked={usePrev}
-                onChange={hdlToggleUsePrev}
-                disabled={!hasPrevAddress}
+                checked={usePrevAddr}
+                onChange={toggleUsePrevAddr}
+                disabled={!hasPrevAddr}
                 className="h-4 w-4 accent-black"
-                title={!hasPrevAddress ? "ยังไม่มีที่อยู่จากคำสั่งซื้อก่อนหน้า" : ""}
+                title={!hasPrevAddr ? "ยังไม่มีที่อยู่จากคำสั่งซื้อก่อนหน้า" : ""}
               />
               ใช้ที่อยู่จากคำสั่งซื้อครั้งก่อน
             </label>
@@ -224,10 +282,42 @@ export default function SummaryCard() {
                 setAddress(e.target.value);
                 if (addressSaved) setAddressSaved(false);
               }}
-              placeholder="บ้านเลขที่, ถนน, แขวง/ตำบล, เขต/อำเภอ, จังหวัด, รหัสไปรษณีย์, เบอร์โทร"
+              // ตัด "เบอร์โทร" ออกจาก placeholder เพราะแยกช่องแล้ว
+              placeholder="บ้านเลขที่, ถนน, แขวง/ตำบล, เขต/อำเภอ, จังหวัด, รหัสไปรษณีย์"
               className="h-32 w-full resize-y rounded-2xl border border-black/10 bg-white p-3 text-[15px] outline-none placeholder:text-gray-400"
             />
-            <div className="mt-3 flex items-center justify-between">
+
+            {/* เบอร์โทร */}
+            <div className="mt-4">
+              <label className="mb-2 flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={usePrevPhone}
+                  onChange={toggleUsePrevPhone}
+                  disabled={!hasPrevPhone}
+                  className="h-4 w-4 accent-black"
+                  title={!hasPrevPhone ? "ยังไม่มีเบอร์จากคำสั่งซื้อก่อนหน้า" : ""}
+                />
+                ใช้เบอร์จากคำสั่งซื้อครั้งก่อน
+              </label>
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => {
+                  setPhone(e.target.value);
+                  if (addressSaved) setAddressSaved(false);
+                }}
+                placeholder="เช่น 089-123-4567"
+                className={`w-full rounded-2xl border bg-white p-3 text-[15px] outline-none ${
+                  phone && !phoneOk ? "border-red-300" : "border-black/10"
+                }`}
+              />
+              {phone && !phoneOk && (
+                <div className="mt-1 text-xs text-red-600">กรุณากรอกเบอร์ให้ถูกต้อง</div>
+              )}
+            </div>
+
+            <div className="mt-4 flex items-center justify-between">
               <div className="text-xs text-gray-500">
                 {addressSaved ? (
                   <span className="text-green-700">✓ บันทึกแล้ว</span>
@@ -237,10 +327,10 @@ export default function SummaryCard() {
               </div>
               <button
                 onClick={hdlSaveAddress}
-                disabled={saving || !address.trim()}
+                disabled={saving || !address.trim() || !phoneOk}
                 className={[
                   "rounded-full px-4 py-2 text-sm font-semibold transition active:scale-[0.98]",
-                  saving || !address.trim()
+                  saving || !address.trim() || !phoneOk
                     ? "cursor-not-allowed border border-black/10 bg-gray-200 text-gray-500"
                     : "bg-black text-white hover:opacity-90",
                 ].join(" ")}
