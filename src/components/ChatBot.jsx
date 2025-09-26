@@ -43,6 +43,28 @@ const formatTime = (ts) => {
   return `${HH}:${mm}`;
 };
 
+
+// ทำให้ข้อความที่มี URL กลายเป็นลิงก์คลิกได้
+const renderWithLinks = (text) => {
+  const parts = String(text || "").split(/(https?:\/\/[^\s]+)/g);
+  const isUrl = (s) => /^https?:\/\/[^\s]+$/.test(s);
+  return parts.map((seg, i) =>
+    isUrl(seg) ? (
+      <a
+        key={i}
+        href={seg}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{ color: "inherit", textDecoration: "underline" }}
+      >
+        {seg}
+      </a>
+    ) : (
+      <React.Fragment key={i}>{seg}</React.Fragment>
+    )
+  );
+};
+
 /* ===================== MAIN ===================== */
 export default function ChatBot() {
   const [open, setOpen] = useState(false);
@@ -921,7 +943,7 @@ useEffect(() => {
                     <span style={{ fontWeight: m.role === "bot" ? 600 : 700, opacity: 0.85 }}>
                       {m.role === "user" ? "You: " : "Bot: "}
                     </span>
-                    <span>{m.text}</span>
+                    <span style={{ whiteSpace: 'pre-wrap' }}>{renderWithLinks(m.text)}</span>
                   </Bubble>
                 );
 
