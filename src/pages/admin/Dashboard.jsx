@@ -100,14 +100,18 @@ export default function Dashboard() {
         const slipsPendArr = asArray(pick(slipsPendingRes));
         const slipsRejArr  = asArray(pick(slipsRejectedRes));
 
+                // ใช้จำนวนสลิปทุกสถานะให้ตรงกับหน้า Approve
+        const ordersTotal = slipsOKArr.length + slipsPendArr.length + slipsRejArr.length;
+
         const kpis = {
           users: usersArr.length,
           products: productsArr.length,
-          orders: ordersArr.length,
+          orders: ordersTotal,
           revenueApproved: slipsOKArr.reduce((s, x) => s + toNum(x.amount ?? x.total ?? x.sum ?? 0), 0),
           reviewed: slipsOKArr.length + slipsRejArr.length,
           unreviewed: slipsPendArr.length,
         };
+
 
         const salesByDay = build14DaysSeries(slipsOKArr);
 
